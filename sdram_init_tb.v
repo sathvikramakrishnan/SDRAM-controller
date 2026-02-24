@@ -14,16 +14,17 @@ module sdram_init_tb();
     always #5 s_clk = ~s_clk;
 
     // Reset generation: Assert for 3 clock cycles
+    // Use NBA to avoid race condition during deassertion
     initial begin
-        s_rstn = 1'b0;
+        s_rstn <= 1'b0;
         repeat(3) @(posedge s_clk);
-        s_rstn = 1'b1;
+        s_rstn <= 1'b1;
     end
 
     initial begin
-        @(posedge init_done);   // Wait until initialization completes
-        repeat (2) @(posedge s_clk);       // Wait for two more cycles
-        $finish;                // End simulation
+        @(posedge init_done);
+        repeat (2) @(posedge s_clk);
+        $finish;
     end
 
     initial begin

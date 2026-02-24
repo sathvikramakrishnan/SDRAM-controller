@@ -8,9 +8,9 @@ module sdram_auto_ref_tb();
     always #5 s_clk = ~s_clk;
 
     initial begin
-        s_rstn = 1'b0;
+        s_rstn <= 1'b0;
         repeat(3) @(posedge s_clk);
-        s_rstn = 1'b1;
+        s_rstn <= 1'b1;
     end
 
     initial begin
@@ -73,9 +73,10 @@ module sdram_auto_ref_tb();
         .Debug (1'b1) 
     );
 
-    // --- Main Test Sequence ---
+    // Main Test Sequence
+    // Use NBA to avoid race conditions
     initial begin
-        aref_en = 1'b0;
+        aref_en <= 1'b0;
 
         // 1. Wait for Initialization to complete
         wait(init_done == 1'b1);
@@ -88,14 +89,14 @@ module sdram_auto_ref_tb();
 
         // 3. Acknowledge/Enable the refresh operation
         @(posedge s_clk);
-        aref_en = 1'b1;
+        aref_en <= 1'b1;
 
         // 4. Wait for the Refresh FSM to finish its sequence (PRE -> TRP -> REF -> TRFC)
         wait(aref_end == 1'b1);
         $display("Auto-Refresh Sequence Finished at %t", $time);
         
         @(posedge s_clk);
-        aref_en = 1'b0;
+        aref_en <= 1'b0;
 
         repeat(10) @(posedge s_clk);
         $finish;

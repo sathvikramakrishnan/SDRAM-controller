@@ -19,14 +19,14 @@ module sdram_init(
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n)
             count_150us <= 1'b0;
-        else if (count_150us == count_power_on)
+        else if (count_150us == count_power_on - 1'b1)
             count_150us <= 1'b0;
         else
             count_150us <= count_150us + 1'b1;
     end
 
     // completion of 150us  power-up  wait required for SDRAM init
-    assign power_on_wait_done = (count_150us == count_power_on);
+    assign power_on_wait_done = (count_150us == count_power_on - 1'b1);
 
     // FSM parameters for the different states involved in initialization
     parameter 
@@ -179,7 +179,7 @@ module sdram_auto_ref_gen(
     input init_done,
     input aref_en,
 
-    output reg aref_req,
+    output aref_req,
     output reg [3:0] aref_cmd_out,
     output reg [1:0] aref_bank_out,
     output reg [11:0] aref_addr_out,
@@ -211,14 +211,7 @@ module sdram_auto_ref_gen(
     end
 
     // auto refresh request
-    always @(posedge sys_clk or negedge sys_reset_n) begin
-        if (~sys_reset_n)
-            aref_req <= 1'b0;
-        else if (clk_count == (SINGLE_ROW_COUNT - 1'b1))
-            aref_req <= 1'b1;
-        else
-            aref_req <= 1'b0;
-    end
+    assign aref_req = (clk_count == SINGLE_ROW_COUNT - 1'b1);
 
     // Keeping track of waiting times: TRP and TRFC
     parameter 
