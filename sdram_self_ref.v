@@ -49,9 +49,9 @@ module sdram_self_ref_gen (
     // Wait time counter
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n)
-            wait_count <= 2'd0;
+            wait_count <= 3'd0;
         else if (wait_count_rst)
-            wait_count <= 2'd0;
+            wait_count <= 3'd0;
         else
             wait_count <= wait_count + 1'b1;
     end
@@ -80,13 +80,21 @@ module sdram_self_ref_gen (
         else begin            
             case (sref_state)
                 SREF_IDLE: begin
-                    if (init_done & sref_en)
+                    if (init_done & sref_en) begin
                         sref_state <= SREF_PRECHARGE;
+
+                        sref_cmd_out <=  CMD_NOP;
+                        sref_bank_out <= 2'b11;
+                        sref_addr_out <= 12'hfff;
+                    end
                 end
 
                 SREF_PRECHARGE: begin
-                    sref_cmd_out <= CMD_PRECHARGE;
                     sref_state <= SREF_WAIT_TRP;
+
+                    sref_cmd_out <= CMD_PRECHARGE;
+                    sref_bank_out <= 2'b11;
+                    sref_addr_out <= 12'hfff; // A10 must be set during precharge command
                 end
 
                 SREF_WAIT_TRP: begin
@@ -94,39 +102,73 @@ module sdram_self_ref_gen (
                         sref_state <= SREF_AUTO_REF;
 
                     else
-                        sref_cmd_out <= CMD_NOP;
-
+                        sref_state <= SREF_WAIT_TRP;
+                    
+                    sref_cmd_out <=  CMD_NOP;
+                    sref_bank_out <= 2'b11;
+                    sref_addr_out <= 12'hfff;
                 end
 
                 SREF_AUTO_REF: begin
+                    sref_state <= SREF_WAIT_TRFC;
+
                     sdram_cke <= 1'b0;
                     sref_cmd_out <= CMD_AUTO_REF;
-                    sref_state <= SREF_WAIT_TRFC;
+                    sref_bank_out <= 2'b11;
+                    sref_addr_out <= 12'hfff;
                 end
 
                 SREF_WAIT_TRFC: begin
-                    sref_cmd_out <= CMD_NOP;
                     if (trfc_end)
                         sref_state <= SREF_ENTER;
+                    
+                    else
+                        sref_state <= SREF_WAIT_TRFC;
+                    
+                    sref_cmd_out <= CMD_NOP;
+                    sref_bank_out <= 2'b11;
+                    sref_addr_out <= 12'hfff;
                 end
 
                 SREF_ENTER: begin
                     if (~sref_en)
                         sref_state <= SREF_EXIT;
+                    
+                    else
+                        sref_state <= SREF_ENTER;
+                    
+                    sref_cmd_out <= CMD_NOP;
+                    sref_bank_out <= 2'b11;
+                    sref_addr_out <= 12'hfff;
                 end
 
                 SREF_EXIT: begin
-                    sdram_cke <= 1'b1;
                     sref_state <= SREF_WAIT_TXSR;
+                    
+                    sdram_cke <= 1'b1;
+                    sref_cmd_out <= CMD_NOP;
+                    sref_bank_out <= 2'b11;
+                    sref_addr_out <= 12'hfff;
                 end
 
                 SREF_WAIT_TXSR: begin
                     if (txsr_end)
                         sref_state <= SREF_END;
+                    
+                    else
+                        sref_state <= SREF_WAIT_TXSR;
+                    
+                    sref_cmd_out <= CMD_NOP;
+                    sref_bank_out <= 2'b11;
+                    sref_addr_out <= 12'hfff;
                 end
 
                 SREF_END: begin
                     sref_state <= SREF_IDLE;
+
+                    sref_cmd_out <= CMD_NOP;
+                    sref_bank_out <= 2'b11;
+                    sref_addr_out <= 12'hfff;
                 end
 
                 default: begin
