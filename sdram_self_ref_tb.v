@@ -27,17 +27,17 @@ module sdram_self_ref_tb ();
  
     // Reset Sequence
     initial begin
-        sys_reset_n = 1'b0;
+        sys_reset_n <= 1'b0;
         repeat(5) @(posedge sys_clk);
-        sys_reset_n = 1'b1;
+        sys_reset_n <= 1'b1;
     end
  
     // Trigger Self-Refresh
     initial begin
         repeat(10) @(posedge sys_clk);
-        sref_en = 1'b1; // Enable Self-Refresh
+        sref_en <= 1'b1; // Enable Self-Refresh
         repeat(15) @(posedge sys_clk);
-        sref_en = 1'b0; // Disable Self-Refresh (Exit)
+        sref_en <= 1'b0; // Disable Self-Refresh (Exit)
     end
  
     // Monitor Self-Refresh Completion
