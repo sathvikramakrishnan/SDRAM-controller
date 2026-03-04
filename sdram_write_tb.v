@@ -113,7 +113,7 @@ module tb_sdram_write;
     dqm_in       <= 0;
 
     wait (wr_cmd_out == 4'd4); // Writing process has started
-    repeat(burst_len_in) begin
+    repeat(burst_len_in - 1) begin
       @(posedge sys_clk);
       wr_data_in <= wr_data_in + 1;
     end

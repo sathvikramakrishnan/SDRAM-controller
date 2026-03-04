@@ -90,14 +90,11 @@ module sdram_write(
                 end
 
                 WR_ACTIVE: begin
-                    wr_state <= WR_WAIT_TRCD;
+                    wr_state <= WR_WAIT_TRCD; // 1 cycle wait time already done
                 end
 
                 WR_WAIT_TRCD: begin
-                    if (trcd_end)
-                        wr_state <= WR_WRITE_START;
-                    else 
-                        wr_state <= WR_WAIT_TRCD;
+                    wr_state <= WR_WRITE_START;
                 end
 
                 WR_WRITE_START: begin
