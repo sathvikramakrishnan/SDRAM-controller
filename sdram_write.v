@@ -186,7 +186,7 @@ module sdram_write(
                 end
 
                 WR_PRECHARGE: begin
-                    wr_cmd_out <= WR_PRECHARGE;
+                    wr_cmd_out <= CMD_PRECHARGE;
                     wr_bank_out <= 2'b11;
                     wr_addr_out <= 12'hfff;
                 end
