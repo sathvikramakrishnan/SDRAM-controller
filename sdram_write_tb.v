@@ -38,7 +38,7 @@ module tb_sdram_write;
   reg         wr_en;
   reg [24:0]  wr_addr_in;
   reg [15:0]  wr_data_in;
-  reg [9:0]   burst_len_in;
+  reg [7:0]   burst_len_in;
   reg         dqm_in;
 
   // DUT Outputs
@@ -109,7 +109,7 @@ module tb_sdram_write;
     // Bank=3, Row=1, Col=1, Auto-precharge=1
     wr_addr_in   <= 25'b11_000000000001_1_00_00000001;
     wr_data_in <= 16'h01;
-    burst_len_in <= 10'd8;
+    burst_len_in <= 8'd8;
     dqm_in       <= 0;
 
     wait (wr_cmd_out == 4'd4); // Writing process has started
@@ -126,6 +126,16 @@ module tb_sdram_write;
 
     $display("Simulation Finished Successfully");
     $finish;
+  end
+
+  // Mask fourth value written
+  initial begin
+    wait (wr_cmd_out == 4'd4) begin
+      repeat (3) @(posedge sys_clk);
+      dqm_in <= 1'b1;
+      @(posedge sys_clk);
+      dqm_in <= 1'b0;
+    end
   end
 
 endmodule
