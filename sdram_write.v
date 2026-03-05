@@ -33,7 +33,7 @@ module sdram_write(
         WR_PRECHARGE = 4'd5,
         WR_WAIT_TRP = 4'd6,
         WR_END = 4'd7,
-        WR_TWR = 4'd8,
+        WR_WAIT_TWR = 4'd8,
         WR_AUTO_PRE = 4'd9;
 
     // SDRAM commands
@@ -44,7 +44,7 @@ module sdram_write(
         CMD_PRECHARGE = 4'b0010,
         CMD_BURST_TERM = 4'b0110;
 
-    wire trcd_end, trp_end, wr_cycle_done, auto_pre_end;
+    wire trcd_end, trp_end, twr_end, wr_cycle_done, auto_pre_end;
     reg [3:0] wr_state;
     reg [7:0] clk_count; // 2^8 = 256 columns
     reg reset_clk_count;
@@ -65,6 +65,7 @@ module sdram_write(
         case (wr_state)
             WR_WAIT_TRCD: reset_clk_count = trcd_end;
             WR_WAIT_TRP: reset_clk_count = trp_end;
+            WR_WAIT_TWR: reset_clk_count = twr_end;
             WR_WRITING: reset_clk_count = wr_cycle_done;
             WR_AUTO_PRE: reset_clk_count = auto_pre_end;
             default: reset_clk_count = 1'b1;
@@ -73,6 +74,7 @@ module sdram_write(
 
     assign trcd_end = ((wr_state == WR_WAIT_TRCD) & (clk_count == TRCD_COUNT - 1'b1));
     assign trp_end = ((wr_state == WR_WAIT_TRP) & (clk_count == TRP_COUNT - 1'b1));
+    assign twr_end = ((wr_state == WR_WAIT_TWR) & (clk_count == TWR_COUNT - 1'b1));
     assign wr_cycle_done = ((wr_state == WR_WRITING) & (clk_count == burst_len_in - 1'b1));
     assign auto_pre_end = ((wr_state == WR_AUTO_PRE) & (clk_count == WR_AUTO_PRE_COUNT - 1'b1));
 
@@ -90,11 +92,15 @@ module sdram_write(
                 end
 
                 WR_ACTIVE: begin
-                    wr_state <= WR_WAIT_TRCD; // 1 cycle wait time already done
+                    wr_state <= WR_WAIT_TRCD;
                 end
 
                 WR_WAIT_TRCD: begin
-                    wr_state <= WR_WRITE_START;
+                    if (trcd_end)
+                        wr_state <= WR_WRITE_START;
+                    else
+                        wr_state <= WR_WAIT_TRCD;
+
                 end
 
                 WR_WRITE_START: begin
@@ -106,7 +112,7 @@ module sdram_write(
                         if (wr_addr_in[10] == 1'b1)
                             wr_state <= WR_AUTO_PRE;
                         else
-                            wr_state <= WR_TWR;
+                            wr_state <= WR_WAIT_TWR;
                     end
                     
                     else
@@ -120,9 +126,11 @@ module sdram_write(
                         wr_state <= WR_AUTO_PRE;
                 end
 
-                WR_TWR: begin
-                    // already accounted for the first clk cycle in the last cycle of WR_WRITING
-                    wr_state <= WR_PRECHARGE;
+                WR_WAIT_TWR: begin
+                    if (twr_end)
+                        wr_state <= WR_PRECHARGE;
+                    else
+                        wr_state <= WR_WAIT_TWR;
                 end
 
                 WR_PRECHARGE: begin

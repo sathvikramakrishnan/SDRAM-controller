@@ -106,8 +106,8 @@ module tb_sdram_write;
 
     // Begin Write Operation
     wr_en        <= 1;
-    // Bank=3, Row=1, Col=1, Auto-precharge=1
-    wr_addr_in   <= 25'b11_000000000001_1_00_00000001;
+    // Bank=3, Row=4, Col=1, Auto-precharge=0
+    wr_addr_in   <= 25'b11_000000000100_0_00_00000001;
     wr_data_in <= 16'h01;
     burst_len_in <= 8'd8;
     dqm_in       <= 0;
