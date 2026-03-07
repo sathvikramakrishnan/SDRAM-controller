@@ -16,7 +16,7 @@ module sdram_read(
     output reg [1:0] rd_bank_out,
     output reg [11:0] rd_addr_out,
     output reg rd_dqm_out,
-    output [15:0] rd_data_out
+    output reg [15:0] rd_data_out
 );
 
     parameter 
@@ -46,28 +46,33 @@ module sdram_read(
     reg [3:0] rd_state;
     reg [7:0] count_clk;
     reg reset_count_clk;
-    reg [15:0] rd_data_reg;
 
     assign rd_end = (rd_state == RD_END);
 
-    reg valid_read;    
+    reg valid_read;
     wire trcd_end, trp_end, tcas_end, tread_end, rdburst_end;
+    
+    // to prevent toggling of valid_read
+    reg read_done;
 
     // Write cycle start tracking for validity
     wire [7:0] rd_data_cycles;
     reg [7:0] rd_cycle_count;
 
-    assign rd_data_cycles = (rd_blen_in > TCAS_COUNT) ? (rd_blen_in - TCAS_COUNT) : rd_blen_in;
+    // Number of cycles for RD_READ_DATA state
+    assign rd_data_cycles = (rd_blen_in > TCAS_COUNT) ? (rd_blen_in - TCAS_COUNT) : 1'b1;
     
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n)
             rd_cycle_count <= 8'd0;
-        else if (tread_end)
+        else if (tcas_end) 
             rd_cycle_count <= 8'd0;
-        else if (rd_state == RD_READ_DATA || rd_state == RD_PRECHARGE || rd_state == RD_WAIT_TRP)
-            rd_cycle_count <= rd_cycle_count + 1'b1;
+        else if (rd_cycle_count == rd_blen_in - 1'b1)
+            rd_cycle_count <= 8'd0;
+        else if (rd_state == RD_IDLE)
+            rd_cycle_count <= 8'd0;
         else
-            rd_cycle_count <= 8'd0;
+            rd_cycle_count <= rd_cycle_count + 1'b1;
     end
 
     assign trcd_end = ((rd_state == RD_WAIT_TRCD) & (count_clk == TRCD_COUNT - 1'b1));
@@ -161,7 +166,7 @@ module sdram_read(
         end
     end
 
-    // SDRAM commands
+    // SDRAM outputs
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n) begin
             rd_cmd_out <= CMD_NOP;
@@ -170,11 +175,20 @@ module sdram_read(
         end
         else begin
             case (rd_state)
+                RD_IDLE: begin
+                    rd_cmd_out <= CMD_NOP;
+                    rd_bank_out <= 2'b11;
+                    rd_addr_out <= 12'hfff;
+                    valid_read <= 1'b0;
+                    read_done <= 1'b0;
+                end
+
                 RD_ACTIVE: begin
                     rd_cmd_out <= CMD_ACTIVE;
                     rd_bank_out <= rd_addr_in[24:23];
                     rd_addr_out <= rd_addr_in[22:11]; // row addr
                     valid_read <= 1'b0;
+                    read_done <= 1'b0;
                 end
 
                 RD_READ: begin
@@ -182,6 +196,7 @@ module sdram_read(
                     rd_bank_out <= rd_addr_in[24:23];
                     rd_addr_out <= {4'b0000, rd_addr_in[7:0]}; // col addr
                     valid_read <= 1'b0;
+                    read_done <= 1'b0;
                 end
 
                 RD_WAIT_CAS: begin
@@ -189,6 +204,7 @@ module sdram_read(
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
                     valid_read <= (tcas_end) ? 1'b1 : 1'b0;
+                    read_done <= 1'b0;
                 end
 
                 RD_READ_DATA: begin
@@ -200,28 +216,32 @@ module sdram_read(
                     end
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
-                    valid_read <= 1'b1;
+                    valid_read <= (rd_cycle_count == rd_blen_in - 1'b1) ? 1'b0 : ~read_done;
+                    read_done <= (read_done | rd_cycle_count == rd_blen_in - 1'b1);
                 end
 
                 RD_PRECHARGE: begin
                     rd_cmd_out <= CMD_PRECHARGE;
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
-                    valid_read <= (rd_cycle_count == TCAS_COUNT - 1'b1) ? 1'b0 : 1'b1;
+                    valid_read <= (rd_cycle_count == rd_blen_in - 1'b1) ? 1'b0 : ~read_done;
+                    read_done <= (read_done | rd_cycle_count == rd_blen_in - 1'b1);
                 end
 
                 RD_WAIT_TRP: begin
                     rd_cmd_out <= CMD_NOP;
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
-                    valid_read <= (rd_cycle_count == TCAS_COUNT - 1'b1) ? 1'b0 : 1'b1;
+                    valid_read <= (rd_cycle_count == rd_blen_in - 1'b1) ? 1'b0 : ~read_done;
+                    read_done <= (read_done | rd_cycle_count == rd_blen_in - 1'b1);
                 end
- 
+
                 RD_END: begin
                     rd_cmd_out <= CMD_NOP;
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
                     valid_read <= 1'b0;
+                    read_done <= read_done;
                 end
 
                 default: begin
@@ -229,12 +249,13 @@ module sdram_read(
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
                     valid_read <= 1'b0;
+                    read_done <= read_done;
                 end
             endcase
         end
     end
 
-    // DQM latency handling using shift registers
+    // DQM latency handling using a shift register
     reg [TCAS_COUNT-1:0] dqm_reg;
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n) begin
@@ -250,13 +271,11 @@ module sdram_read(
     // Data latch - rd_data_in comes from the sdram model
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n) 
-            rd_data_reg <= 16'd0;
-        else  if (~dqm_reg[TCAS_COUNT-1])
-            rd_data_reg <= rd_data_in;
+            rd_data_out <= 16'd0;
+        else  if (~dqm_reg[TCAS_COUNT-1] && valid_read)
+            rd_data_out <= rd_data_in;
         else
-            rd_data_reg <= 16'd1;
+            rd_data_out <= 16'd1;
     end
-
-    assign rd_data_out = (valid_read) ? rd_data_reg : 16'd0;
 
 endmodule

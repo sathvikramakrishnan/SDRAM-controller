@@ -127,12 +127,12 @@ module tb_sdram_read;
 
     // Mask second value read
     initial begin
-    wait (rd_cmd_out == 4'd5) begin
-        repeat (1) @(posedge sys_clk);
-        rd_dqm_in <= 1'b1;
-        @(posedge sys_clk);
-        rd_dqm_in <= 1'b0;
-    end
+        wait (rd_cmd_out == 4'd5) begin
+            repeat (1) @(posedge sys_clk);
+            rd_dqm_in <= 1'b1;
+            @(posedge sys_clk);
+            rd_dqm_in <= 1'b0;
+        end
     end
 
 endmodule
