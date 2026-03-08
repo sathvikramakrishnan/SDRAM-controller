@@ -40,7 +40,7 @@ module tb_sdram_read;
     reg         rd_en;
     reg [24:0]  rd_addr_in;
     wire [15:0] rd_data_in;
-    reg [7:0]   rd_blen_in;
+    reg [8:0]   rd_blen_in;
     reg         rd_dqm_in;
 
     // Outputs from SDRAM Read Controller
@@ -109,7 +109,7 @@ module tb_sdram_read;
         // Start Read Operation
         rd_en <= 1;
         rd_addr_in <= 25'b00_000000000001_0_00_00000001; // Bank 0, Row 1, Col 1
-        rd_blen_in <= 8'd8;
+        rd_blen_in <= 9'd8;
         rd_dqm_in <= 0;
 
         wait (rd_cmd_out == 4'd5);

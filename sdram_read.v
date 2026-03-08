@@ -7,7 +7,7 @@ module sdram_read(
     input rd_en,
     input [24:0] rd_addr_in, // 24:23 - bank, 22:11 - row, 10 - auto precharge, 9:8 - unused, 7:0 - column
     input [15:0] rd_data_in,
-    input [7:0] rd_blen_in,
+    input [8:0] rd_blen_in,
     input rd_dqm_in,
 
     output rd_ack,
@@ -59,6 +59,10 @@ module sdram_read(
     wire [7:0] rd_data_cycles;
     reg [7:0] rd_cycle_count;
 
+    // Driven high when the last read cycle is encountered
+    wire last_cycle;
+    assign last_cycle = (rd_cycle_count == rd_blen_in - 1'b1);
+
     // Number of cycles for RD_READ_DATA state
     assign rd_data_cycles = (rd_blen_in > TCAS_COUNT) ? (rd_blen_in - TCAS_COUNT) : 1'b1;
     
@@ -67,7 +71,7 @@ module sdram_read(
             rd_cycle_count <= 8'd0;
         else if (tcas_end) 
             rd_cycle_count <= 8'd0;
-        else if (rd_cycle_count == rd_blen_in - 1'b1)
+        else if (last_cycle)
             rd_cycle_count <= 8'd0;
         else if (rd_state == RD_IDLE)
             rd_cycle_count <= 8'd0;
@@ -216,24 +220,24 @@ module sdram_read(
                     end
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
-                    valid_read <= (rd_cycle_count == rd_blen_in - 1'b1) ? 1'b0 : ~read_done;
-                    read_done <= (read_done | rd_cycle_count == rd_blen_in - 1'b1);
+                    valid_read <= (last_cycle) ? 1'b0 : ~read_done;
+                    read_done <= (read_done | last_cycle);
                 end
 
                 RD_PRECHARGE: begin
                     rd_cmd_out <= CMD_PRECHARGE;
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
-                    valid_read <= (rd_cycle_count == rd_blen_in - 1'b1) ? 1'b0 : ~read_done;
-                    read_done <= (read_done | rd_cycle_count == rd_blen_in - 1'b1);
+                    valid_read <= (last_cycle) ? 1'b0 : ~read_done;
+                    read_done <= (read_done | last_cycle);
                 end
 
                 RD_WAIT_TRP: begin
                     rd_cmd_out <= CMD_NOP;
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
-                    valid_read <= (rd_cycle_count == rd_blen_in - 1'b1) ? 1'b0 : ~read_done;
-                    read_done <= (read_done | rd_cycle_count == rd_blen_in - 1'b1);
+                    valid_read <= (last_cycle) ? 1'b0 : ~read_done;
+                    read_done <= (read_done | last_cycle);
                 end
 
                 RD_END: begin

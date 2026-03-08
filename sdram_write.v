@@ -5,7 +5,7 @@ module sdram_write(
     input wr_en,
     input [24:0] wr_addr_in, // 24:23 - bank, 22:11 - row, 10 - auto precharge, 9:8 - unused, 7:0 - column
     input [15:0] wr_data_in,
-    input [7:0] burst_len_in,
+    input [8:0] burst_len_in,
     input dqm_in,
 
     output ack_out,
