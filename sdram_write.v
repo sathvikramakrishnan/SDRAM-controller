@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module sdram_write(
     input sys_clk,
     input sys_reset_n,
@@ -7,14 +9,17 @@ module sdram_write(
     input [15:0] wr_data_in,
     input [8:0] burst_len_in,
     input dqm_in,
+    input wr_wait,
 
     output ack_out,
-    output burst_done_out,
+    output reg apply_data,
+    output wr_end,
     output reg [3:0] wr_cmd_out,
     output reg [1:0] wr_bank_out,
     output reg [11:0] wr_addr_out,
     output reg dqm_out,
-    output [15:0] wr_data_out
+    output [15:0] wr_data_out,
+    output reg wr_err
 );
 
     parameter 
@@ -49,7 +54,7 @@ module sdram_write(
     reg [7:0] clk_count; // 2^8 = 256 columns
     reg reset_clk_count;
 
-    assign burst_done_out = (wr_state == WR_END);
+    assign wr_end = ((~wr_err) & (wr_state == WR_END));
 
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n)
@@ -66,7 +71,7 @@ module sdram_write(
             WR_WAIT_TRCD: reset_clk_count = trcd_end;
             WR_WAIT_TRP: reset_clk_count = trp_end;
             WR_WAIT_TWR: reset_clk_count = twr_end;
-            WR_WRITING: reset_clk_count = wr_cycle_done;
+            WR_WRITING: reset_clk_count = wr_cycle_done | wr_wait;
             WR_AUTO_PRE: reset_clk_count = auto_pre_end;
             default: reset_clk_count = 1'b1;
         endcase
@@ -80,8 +85,9 @@ module sdram_write(
 
     // FSM transitions
     always @(posedge sys_clk or negedge sys_reset_n) begin
-        if (~sys_reset_n)
+        if (~sys_reset_n) begin
             wr_state <= WR_IDLE;
+        end
         else begin
             case (wr_state)
                 WR_IDLE: begin
@@ -108,15 +114,20 @@ module sdram_write(
                 end
 
                 WR_WRITING: begin
-                    if (wr_cycle_done) begin
+                    if (wr_wait & ~wr_cycle_done) begin
+                        wr_state <= WR_WAIT_TWR;
+                    end
+
+                    else if (wr_cycle_done) begin
                         if (wr_addr_in[10] == 1'b1)
                             wr_state <= WR_AUTO_PRE;
                         else
                             wr_state <= WR_WAIT_TWR;
                     end
                     
-                    else
+                    else begin
                         wr_state <= WR_WRITING;
+                    end
                 end
 
                 WR_AUTO_PRE: begin
@@ -127,8 +138,13 @@ module sdram_write(
                 end
 
                 WR_WAIT_TWR: begin
-                    if (twr_end)
-                        wr_state <= WR_PRECHARGE;
+                    if (twr_end) begin
+                        if (~wr_err)
+                            wr_state <= WR_PRECHARGE;
+                        else
+                            wr_state <= WR_END;
+                    end
+
                     else
                         wr_state <= WR_WAIT_TWR;
                 end
@@ -161,6 +177,8 @@ module sdram_write(
             wr_cmd_out <= CMD_NOP;
             wr_bank_out <= 2'b11;
             wr_addr_out <= 12'hfff;
+            apply_data <= 1'b0;
+            wr_err <= 1'b0;
         end
         else begin
             case (wr_state)
@@ -168,21 +186,35 @@ module sdram_write(
                     wr_cmd_out <= CMD_ACTIVE;
                     wr_bank_out <= wr_addr_in[24:23];
                     wr_addr_out <= wr_addr_in[22:11]; // row addr
+                    apply_data <= 1'b0;
+                    wr_err <= 1'b0;
                 end
 
                 WR_WRITE_START: begin
                     wr_cmd_out <= CMD_WRITE;
                     wr_bank_out <= wr_addr_in[24:23];
                     wr_addr_out <= {4'b0000, wr_addr_in[7:0]};
+                    apply_data <= 1'b1;
+                    wr_err <= 1'b0;
                 end
 
                 WR_WRITING: begin
-                    if (wr_cycle_done) begin
+                    if (wr_wait  & ~wr_cycle_done) begin
                         wr_cmd_out <= CMD_BURST_TERM;
+                        apply_data <= 1'b0;
+                        wr_err <= 1'b1;
+                    end
+                    else if (wr_cycle_done) begin
+                        wr_cmd_out <= CMD_BURST_TERM;
+                        apply_data <= 1'b0;
+                        wr_err <= 1'b0;
                     end
                     else begin
                         wr_cmd_out <= CMD_NOP;
+                        apply_data <= 1'b1;
+                        wr_err <= 1'b0;
                     end
+
                     wr_bank_out <= 2'b11;
                     wr_addr_out <= 12'hfff;
                 end
@@ -191,24 +223,40 @@ module sdram_write(
                     wr_cmd_out <= CMD_NOP;
                     wr_bank_out <= 2'b11;
                     wr_addr_out <= 12'hfff;
+                    apply_data <= 1'b0;
+                    wr_err <= wr_err;
+                end
+
+                WR_WAIT_TWR: begin
+                    wr_cmd_out <= CMD_NOP;
+                    wr_bank_out <= 2'b11;
+                    wr_addr_out <= 12'hfff;
+                    apply_data <= 1'b0;
+                    wr_err <= wr_err;
                 end
 
                 WR_PRECHARGE: begin
                     wr_cmd_out <= CMD_PRECHARGE;
                     wr_bank_out <= 2'b11;
                     wr_addr_out <= 12'hfff;
+                    apply_data <= 1'b0;
+                    wr_err <= wr_err;
                 end
 
                 WR_END: begin
                     wr_cmd_out <= CMD_NOP;
                     wr_bank_out <= 2'b11;
                     wr_addr_out <= 12'hfff;
+                    apply_data <= 1'b0;
+                    wr_err <= wr_err;
                 end
 
                 default: begin
                     wr_cmd_out <= CMD_NOP;
                     wr_bank_out <= 2'b11;
                     wr_addr_out <= 12'hfff;
+                    apply_data <= 1'b0;
+                    wr_err <= wr_err;
                 end
             endcase
         end
