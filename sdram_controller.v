@@ -77,7 +77,7 @@ module sdram_controller (
                 end
 
                 ACCEPT_WR: begin
-                    if (aref_req && ~wr_end)
+                    if (aref_req)
                         contr_state <= WR_ABRUPT_END;
                     else if (wr_end)
                         contr_state <= WR_DONE;
@@ -87,7 +87,7 @@ module sdram_controller (
 
                 WR_ABRUPT_END: begin
                     if (wr_err)
-                        contr_state <= WR_DONE;
+                        contr_state <= SERVE_AR;
                     else
                         contr_state <= WR_ABRUPT_END;
                 end

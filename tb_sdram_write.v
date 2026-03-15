@@ -184,7 +184,6 @@ module tb_sdram_write;
   end
 
   always @(posedge apply_data) begin
-    wait(apply_data);
     repeat (wr_blen_in - 1'b1) begin
       @(posedge sys_clk);
       wr_data_in <= wr_data_in + 1'b1;

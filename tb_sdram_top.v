@@ -83,44 +83,37 @@ module tb_sdram_top;
         wr_dqm_in = 1'b0;
         wr_req = 1;
 
-        @(posedge apply_data);
-        repeat(wr_blen_in - 1'b1) begin
-            @(posedge sys_clk);
-            wr_data_in = wr_data_in + 1;
-        end
+        @(negedge dut.aref_req);
 
-        @(posedge wr_end or posedge wr_err);
-        wr_req = 0;
+        repeat(1544) @(posedge sys_clk);
+        $display("Starting Write with wait...");
+        wr_addr_in = 25'b11_000000000010_0_00_00000001;
+        wr_data_in = 16'h00B1;
+        wr_blen_in = 9'd8;
+        wr_dqm_in = 1'b0;
+        wr_req = 1;
 
-        // @(negedge dut.aref_req);
-
-        // repeat(1535) @(posedge sys_clk);   
-        // $display("Starting Write with wait...");
-        // wr_addr_in = 25'b11_000000000001_0_00_00000001;
-        // wr_data_in = 16'h00B1;
-        // wr_blen_in = 9'd8;
-        // wr_dqm_in = 1'b0;
-        // wr_req = 1;
-
-        // @(posedge apply_data);
-        // repeat(wr_blen_in - 1'b1) begin
-        //     @(posedge sys_clk);
-        //     wr_data_in = wr_data_in + 1;
-        // end
-
-        // @(posedge wr_end or posedge wr_err);
-        // wr_req = 0;
+        repeat (200) @(posedge sys_clk);
+        $display("Starting Write without wait again...");
+        wr_addr_in = 25'b11_000000000011_0_00_00000001;
+        wr_data_in = 16'h00C1;
+        wr_blen_in = 9'd8;
+        wr_dqm_in = 1'b0;
+        wr_req = 1;
         
-
         @(posedge dut.aref_req);
         @(posedge dut.aref_end);
-        @(posedge sys_clk);
+        repeat (10) @(posedge sys_clk);
         $finish;
     end
 
-    initial begin
-        $monitor("error %d", wr_err);
+    always @(posedge wr_end or posedge wr_err) begin
+        wr_req <= 0;
     end
     
+    always @(posedge sys_clk) begin
+        if (apply_data)
+            wr_data_in <= wr_data_in + 1;
+    end
 
 endmodule
