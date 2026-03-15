@@ -111,9 +111,12 @@ module tb_sdram_top;
         wr_req <= 0;
     end
     
-    always @(posedge sys_clk) begin
-        if (apply_data)
-            wr_data_in <= wr_data_in + 1;
+    always @(posedge apply_data) begin
+        @(posedge sys_clk);
+        repeat (wr_blen_in - 1'b1) begin
+        @(posedge sys_clk);
+        wr_data_in <= wr_data_in + 1'b1;
+        end
     end
 
 endmodule
