@@ -10,7 +10,6 @@ module sdram_read(
     input [8:0] rd_blen_in,
     input rd_dqm_in,
 
-    output rd_ack,
     output rd_end,
     output reg [3:0] rd_cmd_out,
     output reg [1:0] rd_bank_out,

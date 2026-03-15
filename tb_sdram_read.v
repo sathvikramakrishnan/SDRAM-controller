@@ -44,7 +44,6 @@ module tb_sdram_read;
     reg         rd_dqm_in;
 
     // Outputs from SDRAM Read Controller
-    wire        rd_ack;       
     wire        rd_end;
     wire [3:0]  rd_cmd_out;
     wire [1:0]  rd_bank_out; 
@@ -61,7 +60,6 @@ module tb_sdram_read;
         .rd_data_in   (rd_data_in),
         .rd_blen_in   (rd_blen_in),
         .rd_dqm_in    (rd_dqm_in),
-        .rd_ack       (rd_ack),
         .rd_end       (rd_end),
         .rd_cmd_out   (rd_cmd_out),
         .rd_bank_out  (rd_bank_out),

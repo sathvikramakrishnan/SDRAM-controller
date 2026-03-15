@@ -7,17 +7,16 @@ module sdram_write(
     input wr_en,
     input [24:0] wr_addr_in, // 24:23 - bank, 22:11 - row, 10 - auto precharge, 9:8 - unused, 7:0 - column
     input [15:0] wr_data_in,
-    input [8:0] burst_len_in,
-    input dqm_in,
+    input [8:0] wr_blen_in,
+    input wr_dqm_in,
     input wr_wait,
 
-    output ack_out,
     output reg apply_data,
     output wr_end,
     output reg [3:0] wr_cmd_out,
     output reg [1:0] wr_bank_out,
     output reg [11:0] wr_addr_out,
-    output reg dqm_out,
+    output reg wr_dqm_out,
     output [15:0] wr_data_out,
     output reg wr_err
 );
@@ -80,7 +79,7 @@ module sdram_write(
     assign trcd_end = ((wr_state == WR_WAIT_TRCD) & (clk_count == TRCD_COUNT - 1'b1));
     assign trp_end = ((wr_state == WR_WAIT_TRP) & (clk_count == TRP_COUNT - 1'b1));
     assign twr_end = ((wr_state == WR_WAIT_TWR) & (clk_count == TWR_COUNT - 1'b1));
-    assign wr_cycle_done = ((wr_state == WR_WRITING) & (clk_count == burst_len_in - 1'b1));
+    assign wr_cycle_done = ((wr_state == WR_WRITING) & (clk_count == wr_blen_in - 1'b1));
     assign auto_pre_end = ((wr_state == WR_AUTO_PRE) & (clk_count == WR_AUTO_PRE_COUNT - 1'b1));
 
     // FSM transitions
@@ -264,11 +263,11 @@ module sdram_write(
 
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n)
-            dqm_out <= 1'b0;
+            wr_dqm_out <= 1'b0;
         else
-            dqm_out <= dqm_in;            
+            wr_dqm_out <= wr_dqm_in;            
     end
 
-    assign wr_data_out = (~dqm_in) ? wr_data_in : 16'hz;
+    assign wr_data_out = (~wr_dqm_in) ? wr_data_in : 16'hz;
 
 endmodule
