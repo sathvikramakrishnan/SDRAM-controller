@@ -11,9 +11,9 @@ Supports read/write operations, refresh, and power down mode.
 - FSM-based control logic to sequence different operations
 
 ## Architecture
-- **Init**: PRECHARGE → AUTO REFRESH → MODE REGISTER LOAD  
+- **Init**: PRECHARGE -> AUTO REFRESH -> MODE REGISTER LOAD  
 - **Read/Write**: Handles CAS latency and burst transfers  
-- **Refresh**: Periodic auto-refresh logic and self-refresh logic in power-down mode
+- **Refresh**: Periodic auto-refresh logic and self-refresh logic in power-down mode  
 
 ## SDRAM Model
 Includes `sdram_model.v` (Micron behavioral model) for:
@@ -31,5 +31,5 @@ gtkwave sdram_top.vcd
 
 ## Synthesis
 Tool: Yosys
-RTL -> Gate-level netlist
+RTL -> Gate-level netlist  
 Post-synthesis verification done
