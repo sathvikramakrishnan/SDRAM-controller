@@ -8,7 +8,6 @@ module tb_sdram_read;
 
     always #5 sys_clk = ~sys_clk;
 
-    // Reset Pulse Generation
     initial begin
         sys_reset_n = 0;
         repeat(3) @(posedge sys_clk);
@@ -20,13 +19,11 @@ module tb_sdram_read;
         $dumpvars(0);
     end
 
-    // SDRAM Initialization Interface Wires
     wire [3:0]  init_cmd;
     wire [1:0]  init_bank;
     wire [11:0] init_addr;
     wire        init_done;
 
-    // SDRAM Initialization Instance
     sdram_init sdram_init_inst (
         .sys_clk     (sys_clk),        
         .sys_reset_n   (sys_reset_n),    
@@ -36,20 +33,23 @@ module tb_sdram_read;
         .init_done   (init_done)     
     );
 
-    // Inputs to SDRAM Read Controller
+    // Inputs to SDRAM read controller
     reg         rd_en;
     reg [24:0]  rd_addr_in;
     wire [15:0] rd_data_in;
     reg [8:0]   rd_blen_in;
     reg         rd_dqm_in;
+    reg         rd_wait;
 
-    // Outputs from SDRAM Read Controller
+    // Outputs from SDRAM read controller
+    wire        valid_read;
     wire        rd_end;
     wire [3:0]  rd_cmd_out;
     wire [1:0]  rd_bank_out; 
     wire [11:0] rd_addr_out; 
     wire [15:0] rd_data_out;
-    wire rd_dqm_out;
+    wire        rd_dqm_out;
+    wire        rd_err;
 
     sdram_read dut (
         .sys_clk      (sys_clk),
@@ -60,12 +60,15 @@ module tb_sdram_read;
         .rd_data_in   (rd_data_in),
         .rd_blen_in   (rd_blen_in),
         .rd_dqm_in    (rd_dqm_in),
+        .rd_wait      (rd_wait),
+        .valid_read   (valid_read),
         .rd_end       (rd_end),
         .rd_cmd_out   (rd_cmd_out),
         .rd_bank_out  (rd_bank_out),
         .rd_addr_out  (rd_addr_out),
         .rd_dqm_out   (rd_dqm_out),
-        .rd_data_out  (rd_data_out)
+        .rd_data_out  (rd_data_out),
+        .rd_err       (rd_err)
     );
 
     // MUX for SDRAM command interface (init or read mode)
@@ -88,44 +91,71 @@ module tb_sdram_read;
         .Ras_n  (cmd[2]),
         .Cas_n  (cmd[1]),
         .We_n   (cmd[0]),
-        .Dqm    (1'b0),           
+        .Dqm    (rd_dqm_out),
         .Debug  (1'b1)
     );
 
     // Stimulus
     initial begin
-        // Initial Inputs
         rd_en      = 0;
         rd_addr_in = 0;
         rd_blen_in = 0;
         rd_dqm_in  = 0;
+        rd_wait = 0;
 
-        // Wait for SDRAM Initialization to Complete
         @(posedge init_done);
         @(posedge sys_clk);
 
-        // Start Read Operation
+        $display("Starting read without wait");
+
         rd_en <= 1;
-        rd_addr_in <= 25'b00_000000000001_0_00_00000001; // Bank 0, Row 1, Col 1
+        rd_addr_in <= 25'b00_000000000001_0_00_00000001;
         rd_blen_in <= 9'd8;
         rd_dqm_in <= 0;
 
-        wait (rd_cmd_out == 4'd5);
-        repeat (rd_blen_in - 1) begin
-            @(posedge sys_clk);
-        end
 
         @(posedge sys_clk);
         rd_en <= 0;
 
+        @(posedge rd_end);
+        repeat (10) @(posedge sys_clk);
+
+        $display("Starting read with wait");
+        rd_en <= 1;
+        rd_addr_in <= 25'b00_000000000010_0_00_00000001;
+        rd_blen_in <= 9'd8;
+        rd_dqm_in <= 0;
+
+        @(posedge sys_clk);
+        rd_en <= 0;
+
+        wait(rd_cmd_out == 4'd5);
+        repeat (3+2) @(posedge sys_clk);
+        rd_wait <= 1'b1;
+
+        @(posedge rd_end);
+        repeat (10) @(posedge sys_clk);
+
+        $display("Starting read without wait again (with smaller burst)");
+
+        rd_en <= 1;
+        rd_addr_in <= 25'b00_000000000011_0_00_00000001;
+        rd_blen_in <= 9'd3;
+        rd_dqm_in <= 0;
+        rd_wait <= 1'b0;
+
+        @(posedge sys_clk);
+        rd_en <= 0;
+
+        @(posedge rd_end);
         repeat(10) @(posedge sys_clk);
         $display("Simulation Finished Successfully");
         $finish;
     end
 
     // Mask second value read
-    initial begin
-        wait (rd_cmd_out == 4'd5) begin
+    always @(posedge sys_clk) begin
+        if (rd_cmd_out == 4'd5) begin
             repeat (1) @(posedge sys_clk);
             rd_dqm_in <= 1'b1;
             @(posedge sys_clk);
