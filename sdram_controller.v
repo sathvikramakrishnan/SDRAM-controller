@@ -22,9 +22,18 @@ module sdram_controller (
     input [1:0] wr_bank_out,
     input [11:0] wr_addr_out,
 
+    input rd_req,
+    input rd_end,
+    input rd_err,
+    input [3:0] rd_cmd_out,
+    input [1:0] rd_bank_out,
+    input [11:0] rd_addr_out,
+
     output reg aref_en,
     output reg wr_en,
     output reg wr_wait,
+    output reg rd_en,
+    output reg rd_wait,
 
     output reg [3:0] cmd_out,
     output reg [1:0] bank_out,
@@ -32,17 +41,20 @@ module sdram_controller (
     output busy
 );
 
-    assign busy = (~init_done) || (aref_en) || (wr_en);
+    assign busy = (~init_done) || (aref_en) || (wr_en) || (rd_en);
 
     parameter CMD_NOP = 4'b0111;
 
     parameter
-        IDLE = 3'd0,
-        ACCEPT_OP = 3'd1,
-        ACCEPT_WR = 3'd2,
-        SERVE_AR = 3'd3,
-        WR_ABRUPT_END = 3'd4,
-        WR_DONE = 3'd5;
+        IDLE = 4'd0,
+        ACCEPT_OP = 4'd1,
+        SERVE_AR = 4'd2,
+        ACCEPT_WR = 4'd3,
+        WR_ABRUPT_END = 4'd4,
+        WR_DONE = 4'd5,
+        ACCEPT_RD = 4'd6,
+        RD_ABRUPT_END = 4'd7,
+        RD_DONE = 4'd8;
 
     reg [2:0] contr_state;
 
@@ -65,6 +77,8 @@ module sdram_controller (
                         contr_state <= SERVE_AR;
                     else if (wr_req)
                         contr_state <= ACCEPT_WR;
+                    else if (rd_req)
+                        contr_state <= ACCEPT_RD;
                     else
                         contr_state <= ACCEPT_OP;
                 end
@@ -96,6 +110,26 @@ module sdram_controller (
                     contr_state <= ACCEPT_OP;
                 end
 
+                ACCEPT_RD: begin
+                    if (aref_req)
+                        contr_state <= RD_ABRUPT_END;
+                    else if (rd_end)
+                        contr_state <= RD_DONE;
+                    else
+                        contr_state <= ACCEPT_RD;
+                end
+
+                RD_ABRUPT_END: begin
+                    if (rd_err)
+                        contr_state <= SERVE_AR;
+                    else
+                        contr_state <= RD_ABRUPT_END;
+                end
+
+                RD_DONE: begin
+                    contr_state <= ACCEPT_OP;
+                end
+
                 default:
                     contr_state <= IDLE;
 
@@ -109,6 +143,8 @@ module sdram_controller (
             aref_en <= 1'b0;
             wr_en <= 1'b0;
             wr_wait <= 1'b0;
+            rd_en <= 1'b0;
+            rd_wait <= 1'b0;
             cmd_out <= CMD_NOP;
             bank_out <= 2'b11;
             addr_out <= 12'hfff;
@@ -120,6 +156,8 @@ module sdram_controller (
                     aref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b0;
                     cmd_out <= init_cmd_out;
                     bank_out <= init_bank_out;
                     addr_out <= init_addr_out;
@@ -129,33 +167,41 @@ module sdram_controller (
                     aref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b0;
                     cmd_out <= CMD_NOP;
                     bank_out <= 2'b11;
                     addr_out <= 12'hfff;
-                end
-
-                ACCEPT_WR: begin
-                    aref_en <= 1'b0;
-                    wr_en <= ~wr_end;
-                    wr_wait <= 1'b0;
-                    cmd_out <= wr_cmd_out;
-                    bank_out <= wr_bank_out;
-                    addr_out <= wr_addr_out;
                 end
 
                 SERVE_AR: begin
                     aref_en <= (~aref_end);
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b0;
                     cmd_out <= aref_cmd_out;
                     bank_out <= aref_bank_out;
                     addr_out <= aref_addr_out;
+                end
+
+                ACCEPT_WR: begin
+                    aref_en <= 1'b0;
+                    wr_en <= ~wr_end;
+                    wr_wait <= 1'b0;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b0;
+                    cmd_out <= wr_cmd_out;
+                    bank_out <= wr_bank_out;
+                    addr_out <= wr_addr_out;
                 end
 
                 WR_ABRUPT_END: begin
                     aref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b1;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b0;
                     cmd_out <= wr_cmd_out;
                     bank_out <= wr_bank_out;
                     addr_out <= wr_addr_out;
@@ -165,6 +211,41 @@ module sdram_controller (
                     aref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b0;
+                    cmd_out <= CMD_NOP;
+                    bank_out <= 2'b11;
+                    addr_out <= 12'hfff;
+                end
+
+                ACCEPT_RD: begin
+                    aref_en <= 1'b0;
+                    wr_en <= 1'b0;
+                    wr_wait <= 1'b0;
+                    rd_en <= ~rd_end;
+                    rd_wait <= 1'b0;
+                    cmd_out <= rd_cmd_out;
+                    bank_out <= rd_bank_out;
+                    addr_out <= rd_addr_out;
+                end
+
+                RD_ABRUPT_END: begin
+                    aref_en <= 1'b0;
+                    wr_en <= 1'b0;
+                    wr_wait <= 1'b0;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b1;
+                    cmd_out <= rd_cmd_out;
+                    bank_out <= rd_bank_out;
+                    addr_out <= rd_addr_out;
+                end
+
+                RD_DONE: begin
+                    aref_en <= 1'b0;
+                    wr_en <= 1'b0;
+                    wr_wait <= 1'b0;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b0;
                     cmd_out <= CMD_NOP;
                     bank_out <= 2'b11;
                     addr_out <= 12'hfff;
@@ -174,6 +255,8 @@ module sdram_controller (
                     aref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b0;
                     cmd_out <= CMD_NOP;
                     bank_out <= 2'b11;
                     addr_out <= 12'hfff;
