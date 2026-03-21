@@ -92,8 +92,8 @@ module tb_sdram_write;
     wr_en        = 0;
     wr_addr_in   = 0;
     wr_data_in   = 0;
-    wr_blen_in = 0;
-    wr_dqm_in       = 0;
+    wr_blen_in   = 0;
+    wr_dqm_in    = 0;
     wr_wait      = 0;
 
     @(posedge init_done);
@@ -117,7 +117,7 @@ module tb_sdram_write;
     // Write WITH wait
     $display("Starting Write with wait...");
     wr_en        = 1;
-    wr_addr_in   = 25'b11_000000000010_0_00_00000001; // Different Row
+    wr_addr_in   = 25'b11_000000000010_0_00_00000001;
     wr_blen_in = 9'd8;
     wr_data_in = 16'h0;
 
@@ -141,7 +141,7 @@ module tb_sdram_write;
     // Write WITH wait
     $display("Starting Write with wait (edge case)...");
     wr_en        = 1;
-    wr_addr_in   = 25'b11_000000000010_0_00_00000001; // Different Row
+    wr_addr_in   = 25'b11_000000000010_0_00_00000001;
     wr_blen_in = 9'd8;
     wr_data_in = 16'h0;
 
@@ -163,7 +163,7 @@ module tb_sdram_write;
     repeat(10) @(posedge sys_clk);
 
     // Write WITHOUT wait
-    $display("Starting Write without wait (again)...");
+    $display("Starting Write without wait with dqm...");
     wr_en        = 1;
     wr_addr_in   = 25'b11_000000000011_0_00_00000001; 
     wr_blen_in = 9'd8;
@@ -174,6 +174,13 @@ module tb_sdram_write;
 
     wait(wr_cmd_out == 4'd4);
     wr_data_in = 16'hD001;
+
+    // mask third write
+    repeat (2) @(posedge sys_clk);
+    wr_dqm_in <= 1'b1;
+
+    @(posedge sys_clk);
+    wr_dqm_in <= 1'b0;
     
     @(posedge wr_end);
     repeat(10) @(posedge sys_clk);
