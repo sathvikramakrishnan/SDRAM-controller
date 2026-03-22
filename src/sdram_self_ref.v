@@ -80,18 +80,21 @@ module sdram_self_ref_gen (
         else begin            
             case (sref_state)
                 SREF_IDLE: begin
-                    if (init_done & sref_en) begin
+                    if (init_done & sref_en)
                         sref_state <= SREF_PRECHARGE;
+                    else
+                        sref_state <= SREF_IDLE;
 
-                        sref_cmd_out <=  CMD_NOP;
-                        sref_bank_out <= 2'b11;
-                        sref_addr_out <= 12'hfff;
-                    end
+                    sdram_cke <= 1'b1;
+                    sref_cmd_out <=  CMD_NOP;
+                    sref_bank_out <= 2'b11;
+                    sref_addr_out <= 12'hfff;
                 end
 
                 SREF_PRECHARGE: begin
                     sref_state <= SREF_WAIT_TRP;
 
+                    sdram_cke <= 1'b1;
                     sref_cmd_out <= CMD_PRECHARGE;
                     sref_bank_out <= 2'b11;
                     sref_addr_out <= 12'hfff; // A10 must be set during precharge command
@@ -104,6 +107,7 @@ module sdram_self_ref_gen (
                     else
                         sref_state <= SREF_WAIT_TRP;
                     
+                    sdram_cke <= 1'b1;
                     sref_cmd_out <=  CMD_NOP;
                     sref_bank_out <= 2'b11;
                     sref_addr_out <= 12'hfff;
@@ -125,6 +129,7 @@ module sdram_self_ref_gen (
                     else
                         sref_state <= SREF_WAIT_TRFC;
                     
+                    sdram_cke <= 1'b0;
                     sref_cmd_out <= CMD_NOP;
                     sref_bank_out <= 2'b11;
                     sref_addr_out <= 12'hfff;
@@ -136,7 +141,8 @@ module sdram_self_ref_gen (
                     
                     else
                         sref_state <= SREF_ENTER;
-                    
+
+                    sdram_cke <= 1'b0;
                     sref_cmd_out <= CMD_NOP;
                     sref_bank_out <= 2'b11;
                     sref_addr_out <= 12'hfff;
@@ -158,6 +164,7 @@ module sdram_self_ref_gen (
                     else
                         sref_state <= SREF_WAIT_TXSR;
                     
+                    sdram_cke <= 1'b1;
                     sref_cmd_out <= CMD_NOP;
                     sref_bank_out <= 2'b11;
                     sref_addr_out <= 12'hfff;
@@ -166,6 +173,7 @@ module sdram_self_ref_gen (
                 SREF_END: begin
                     sref_state <= SREF_IDLE;
 
+                    sdram_cke <= 1'b1;
                     sref_cmd_out <= CMD_NOP;
                     sref_bank_out <= 2'b11;
                     sref_addr_out <= 12'hfff;
