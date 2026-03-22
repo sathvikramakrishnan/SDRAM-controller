@@ -4,6 +4,9 @@ module sdram_top (
     input sys_clk,
     input sys_reset_n,
 
+    // Bi-directional bus
+    inout [15:0] dq,
+
     input wr_req,
     input [24:0] wr_addr_in,
     input [15:0] wr_data_in,
@@ -12,7 +15,6 @@ module sdram_top (
 
     input rd_req,
     input [24:0] rd_addr_in,
-    input [15:0] rd_data_in,
     input [8:0] rd_blen_in,
     input rd_dqm_in,
 
@@ -29,6 +31,7 @@ module sdram_top (
     output [3:0] cmd_out,
     output [1:0] bank_out,
     output [11:0] addr_out,
+    output dqm,
     output busy
 );
 
@@ -56,6 +59,7 @@ module sdram_top (
     wire [3:0] rd_cmd_out_int;
     wire [1:0] rd_bank_out_int;
     wire [11:0] rd_addr_out_int;
+    wire [15:0] rd_data_in;
     wire rd_dqm_out_int;
 
     sdram_init sdram_init_inst (
@@ -159,5 +163,10 @@ module sdram_top (
         .rd_data_out (rd_data_out),
         .rd_err (rd_err)
     );
+
+    assign dq = (wr_req) ? wr_data_out : 16'hzzzz;
+    assign dqm = (rd_req) ? rd_dqm_in : wr_dqm_in;
+
+    assign rd_data_in = dq;
 
 endmodule

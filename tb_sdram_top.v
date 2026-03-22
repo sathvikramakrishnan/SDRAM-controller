@@ -33,15 +33,15 @@ module tb_sdram_top;
     wire busy;
 
     // to select appropriate signals
-    wire [15:0] dq;
+    wire [15:0] dq_bus;
     wire dqm;
-
-    assign dq = (rd_req) ? rd_data_in : wr_data_out;
-    assign dqm = (rd_req) ? rd_dqm_in : wr_dqm_in;
 
     sdram_top dut (
         .sys_clk      (sys_clk),
         .sys_reset_n  (sys_reset_n),
+
+        .dq           (dq_bus),
+        .dqm          (dqm),
 
         .wr_req       (wr_req),
         .wr_addr_in   (wr_addr_in),
@@ -55,7 +55,6 @@ module tb_sdram_top;
 
         .rd_req       (rd_req),
         .rd_addr_in   (rd_addr_in),
-        .rd_data_in   (rd_data_in),
         .rd_blen_in   (rd_blen_in),
         .rd_dqm_in    (rd_dqm_in),
         .rd_end       (rd_end),
@@ -70,7 +69,7 @@ module tb_sdram_top;
     );
 
     sdram_model_plus sdram_model_plus_inst (
-        .Dq (dq),
+        .Dq (dq_bus),
         .Addr (addr_out),
         .Ba (bank_out),
         .Clk (sys_clk),
@@ -125,7 +124,7 @@ module tb_sdram_top;
         @(negedge dut.aref_req);
 
         // delay WR operation so that it is interrupted by a refresh request
-        repeat(1542) @(posedge sys_clk);
+        repeat(1540) @(posedge sys_clk);
         $display("Starting Write with wait...");
         wr_addr_in = 25'b11_000000000010_0_00_00000001;
         wr_data_in = 16'h00B1;
@@ -159,7 +158,7 @@ module tb_sdram_top;
 
         $display("Starting read operation without wait");
         rd_addr_in = 25'b11_000000000011_0_00_00000001;
-        rd_blen_in = 9'd8;
+        rd_blen_in = 9'd1;
         rd_dqm_in = 1'b0;
 
         rd_req <= 1;
@@ -175,10 +174,12 @@ module tb_sdram_top;
     end
 
     always @(posedge wr_end or posedge wr_err) begin
+        @(posedge sys_clk);
         wr_req <= 0;
     end
 
     always @(posedge rd_end or posedge rd_err) begin
+        @(posedge sys_clk);
         rd_req <= 0;
     end
 

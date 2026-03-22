@@ -287,11 +287,20 @@ module sdram_read(
             rd_dqm_out <= rd_dqm_in;
     end
 
+    // Align valid_read signal (to handle controller FSM latency due to registered command outputs)
+    reg valid_read_aligned;
+    always @(posedge sys_clk or negedge sys_reset_n) begin
+        if (~sys_reset_n)
+            valid_read_aligned <= 1'b0;
+        else
+            valid_read_aligned <= valid_read;
+    end
+
     // Data latch - rd_data_in comes from the sdram model
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n) 
             rd_data_out <= 16'd0;
-        else  if (valid_read)
+        else  if (valid_read_aligned)
             rd_data_out <= rd_data_in;
         else
             rd_data_out <= 16'd1;
