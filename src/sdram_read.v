@@ -280,11 +280,17 @@ module sdram_read(
         end
     end
 
+    // DQM latency handling using a shift register
+    reg [TCAS_COUNT-1:0] dqm_reg;
     always @(posedge sys_clk or negedge sys_reset_n) begin
-        if (~sys_reset_n)
+        if (~sys_reset_n) begin
             rd_dqm_out <= 1'b0;
-        else
-            rd_dqm_out <= rd_dqm_in;
+            dqm_reg <= {TCAS_COUNT{1'b0}};
+        end
+        else begin
+            rd_dqm_out <= dqm_reg[TCAS_COUNT-1];
+            dqm_reg <= {dqm_reg[TCAS_COUNT-2:0], rd_dqm_in};
+        end
     end
 
     // Align valid_read signal (to handle controller FSM latency due to registered command outputs)

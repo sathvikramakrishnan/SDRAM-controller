@@ -164,7 +164,7 @@ module sdram_top (
         .rd_err (rd_err)
     );
 
-    assign dq = (wr_req) ? wr_data_out : 16'hzzzz;
+    assign dq = (wr_req) ? wr_data_out : 16'hz;
     assign dqm = (rd_req) ? rd_dqm_in : wr_dqm_in;
 
     assign rd_data_in = dq;
