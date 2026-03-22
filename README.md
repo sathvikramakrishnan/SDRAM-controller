@@ -24,7 +24,7 @@ Includes `sdram_model.v` (Micron behavioral model) for:
 Tools: Icarus Verilog + GTKWave 
 
 ```bash
-iverilog -o out iverilog -o out src/* tb_sdram_top.v sdram_top.v
+iverilog -o out src/* tb_sdram_top.v sdram_top.v
 vvp out
 gtkwave sdram_top.vcd
 ```

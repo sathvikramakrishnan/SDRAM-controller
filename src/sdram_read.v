@@ -140,9 +140,9 @@ module sdram_read(
                 end
 
                 RD_READ_DATA: begin
-                    if (rd_wait & ~tread_end) begin
+                    if (rd_wait & ~tread_end)
                         rd_state <= RD_PRECHARGE;
-                    end
+
                     else if (tread_end) begin
                         if (rd_addr_in[10] == 1'b1)
                             rd_state <= RD_WAIT_TRP;
