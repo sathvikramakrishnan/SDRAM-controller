@@ -268,6 +268,6 @@ module sdram_write(
             wr_dqm_out <= wr_dqm_in;            
     end
 
-    assign wr_data_out = (~wr_dqm_in) ? wr_data_in : 16'hz;
+    assign wr_data_out = wr_data_in; // masking is handled by the sdram
 
 endmodule

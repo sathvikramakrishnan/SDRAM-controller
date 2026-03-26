@@ -146,8 +146,29 @@ module tb_sdram_top;
 
         repeat (200) @(posedge sys_clk);
         $display("Starting Write without wait again...");
-        wr_addr_in = 25'b11_000000000011_0_00_00000001;
+        wr_addr_in = 25'b11_000000000001_0_00_00000001;
         wr_data_in = 16'h00C1;
+        wr_blen_in = 9'd8;
+        wr_dqm_in = 1'b0;
+
+        wr_req <= 1;
+
+        @(posedge wr_end);
+        repeat (10) @(posedge sys_clk);
+
+        $display("Starting read operation without wait");
+        rd_addr_in = 25'b11_000000000001_0_00_00000001;
+        rd_blen_in = 9'd8;
+        rd_dqm_in = 1'b0;
+
+        rd_req <= 1;
+
+        @(posedge rd_end);
+        repeat (10) @(posedge sys_clk);
+
+        $display("Starting Write without wait again...");
+        wr_addr_in = 25'b11_000000000011_0_00_00000001;
+        wr_data_in = 16'h00D1;
         wr_blen_in = 9'd8;
         wr_dqm_in = 1'b0;
 
@@ -191,23 +212,30 @@ module tb_sdram_top;
         end
     end
 
+    // to not mask write operation the first time
+    reg first = 0;
+
     always @(cmd_out) begin
-        // Mask first value read during read operation
+        // Mask last value read during read operation
         if (cmd_out == 4'd5) begin
-            repeat (1) @(posedge sys_clk);
+            repeat (rd_blen_in) @(posedge sys_clk);
             rd_dqm_in = 1'b1;
             @(posedge sys_clk);
             rd_dqm_in = 1'b0;
         end
 
-        // Mask fifth value written during write operation
+        // Mask second value written during write operation
         else if (cmd_out == 4'd4) begin
-            repeat (4) @(posedge sys_clk);
-            wr_dqm_in = 1'b1;
-            @(posedge sys_clk);
-            wr_dqm_in = 1'b0;
+            if (first) begin
+                repeat (1) @(posedge sys_clk);
+                wr_dqm_in = 1'b1;
+                @(posedge sys_clk);
+                wr_dqm_in = 1'b0;
+            end
+            else begin
+                first = 1;
+            end
         end
     end
-
 
 endmodule
