@@ -5,6 +5,8 @@ module tb_sdram_top;
     reg sys_clk;
     reg sys_reset_n;
 
+    reg sref_req;
+
     reg wr_req;
     reg [24:0] wr_addr_in;
     reg [15:0] wr_data_in;
@@ -30,6 +32,7 @@ module tb_sdram_top;
     wire [3:0] cmd_out;
     wire [1:0] bank_out;
     wire [11:0] addr_out;
+    wire cke;
     wire busy;
 
     // to select appropriate signals
@@ -42,6 +45,8 @@ module tb_sdram_top;
 
         .dq           (dq_bus),
         .dqm          (dqm),
+
+        .sref_req     (sref_req),
 
         .wr_req       (wr_req),
         .wr_addr_in   (wr_addr_in),
@@ -65,6 +70,7 @@ module tb_sdram_top;
         .cmd_out      (cmd_out),
         .bank_out     (bank_out),
         .addr_out     (addr_out),
+        .cke          (cke),
         .busy         (busy)
     );
 
@@ -94,6 +100,7 @@ module tb_sdram_top;
 
     initial begin
         sys_reset_n = 0;
+        sref_req <= 1'b0;
         wr_req = 0;
         wr_addr_in = 25'd0;
         wr_data_in = 16'h0000;
@@ -179,6 +186,24 @@ module tb_sdram_top;
 
         $display("Starting read operation without wait");
         rd_addr_in = 25'b11_000000000011_0_00_00000001;
+        rd_blen_in = 9'd8;
+        rd_dqm_in = 1'b0;
+
+        rd_req <= 1;
+
+        @(posedge rd_end);
+        repeat (10) @(posedge sys_clk);
+
+        $display ("Entering power down mode");
+        sref_req <= 1'b1;
+
+        repeat(2000) @(posedge sys_clk);
+        sref_req <= 1'b0;
+
+        repeat (10) @(posedge sys_clk);
+
+        $display("Starting read operation after power down mode");
+        rd_addr_in = 25'b11_000000000010_0_00_00000001;
         rd_blen_in = 9'd8;
         rd_dqm_in = 1'b0;
 

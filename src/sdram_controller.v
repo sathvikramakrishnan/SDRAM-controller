@@ -15,6 +15,13 @@ module sdram_controller (
     input [11:0] aref_addr_out,
     input aref_end,
 
+    input sref_req,
+    input sref_cke,
+    input [3:0] sref_cmd_out,
+    input [1:0] sref_bank_out,
+    input [11:0] sref_addr_out,
+    input sref_end,
+
     input wr_req,
     input wr_end,
     input wr_err,
@@ -30,6 +37,7 @@ module sdram_controller (
     input [11:0] rd_addr_out,
 
     output reg aref_en,
+    output reg sref_en,
     output reg wr_en,
     output reg wr_wait,
     output reg rd_en,
@@ -38,6 +46,7 @@ module sdram_controller (
     output reg [3:0] cmd_out,
     output reg [1:0] bank_out,
     output reg [11:0] addr_out,
+    output reg cke,
     output busy
 );
 
@@ -54,9 +63,10 @@ module sdram_controller (
         WR_DONE = 4'd5,
         ACCEPT_RD = 4'd6,
         RD_ABRUPT_END = 4'd7,
-        RD_DONE = 4'd8;
+        RD_DONE = 4'd8,
+        SERVE_SR = 4'd9;
 
-    reg [2:0] contr_state;
+    reg [3:0] contr_state;
 
     // FSM transitions
     always @(posedge sys_clk or negedge sys_reset_n) begin
@@ -75,6 +85,8 @@ module sdram_controller (
                 ACCEPT_OP: begin
                     if (aref_req)
                         contr_state <= SERVE_AR;
+                    else if (sref_req)
+                        contr_state <= SERVE_SR;
                     else if (wr_req)
                         contr_state <= ACCEPT_WR;
                     else if (rd_req)
@@ -88,6 +100,13 @@ module sdram_controller (
                         contr_state <= ACCEPT_OP;
                     else
                         contr_state <= SERVE_AR;
+                end
+
+                SERVE_SR: begin
+                    if (sref_end)
+                        contr_state <= ACCEPT_OP;
+                    else
+                        contr_state <= SERVE_SR;
                 end
 
                 ACCEPT_WR: begin
@@ -141,6 +160,7 @@ module sdram_controller (
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n) begin
             aref_en <= 1'b0;
+            sref_en <= 1'b0;
             wr_en <= 1'b0;
             wr_wait <= 1'b0;
             rd_en <= 1'b0;
@@ -148,12 +168,14 @@ module sdram_controller (
             cmd_out <= CMD_NOP;
             bank_out <= 2'b11;
             addr_out <= 12'hfff;
+            cke <= 1'b1;
         end
 
         else begin
             case (contr_state)
                 IDLE: begin
                     aref_en <= 1'b0;
+                    sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
                     rd_en <= 1'b0;
@@ -161,10 +183,12 @@ module sdram_controller (
                     cmd_out <= init_cmd_out;
                     bank_out <= init_bank_out;
                     addr_out <= init_addr_out;
+                    cke <= 1'b1;
                 end
 
                 ACCEPT_OP: begin
                     aref_en <= 1'b0;
+                    sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
                     rd_en <= 1'b0;
@@ -172,10 +196,12 @@ module sdram_controller (
                     cmd_out <= CMD_NOP;
                     bank_out <= 2'b11;
                     addr_out <= 12'hfff;
+                    cke <= 1'b1;
                 end
 
                 SERVE_AR: begin
                     aref_en <= (~aref_end);
+                    sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
                     rd_en <= 1'b0;
@@ -183,10 +209,25 @@ module sdram_controller (
                     cmd_out <= aref_cmd_out;
                     bank_out <= aref_bank_out;
                     addr_out <= aref_addr_out;
+                    cke <= 1'b1;
+                end
+
+                SERVE_SR: begin
+                    aref_en <= 1'b0;
+                    sref_en <= (sref_req);
+                    wr_en <= 1'b0;
+                    wr_wait <= 1'b0;
+                    rd_en <= 1'b0;
+                    rd_wait <= 1'b0;
+                    cmd_out <= sref_cmd_out;
+                    bank_out <= sref_bank_out;
+                    addr_out <= sref_addr_out;
+                    cke <= sref_cke;
                 end
 
                 ACCEPT_WR: begin
                     aref_en <= 1'b0;
+                    sref_en <= 1'b0;
                     wr_en <= ~wr_end;
                     wr_wait <= 1'b0;
                     rd_en <= 1'b0;
@@ -194,10 +235,12 @@ module sdram_controller (
                     cmd_out <= wr_cmd_out;
                     bank_out <= wr_bank_out;
                     addr_out <= wr_addr_out;
+                    cke <= 1'b1;
                 end
 
                 WR_ABRUPT_END: begin
                     aref_en <= 1'b0;
+                    sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b1;
                     rd_en <= 1'b0;
@@ -205,10 +248,12 @@ module sdram_controller (
                     cmd_out <= wr_cmd_out;
                     bank_out <= wr_bank_out;
                     addr_out <= wr_addr_out;
+                    cke <= 1'b1;
                 end
 
                 WR_DONE: begin
                     aref_en <= 1'b0;
+                    sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
                     rd_en <= 1'b0;
@@ -216,10 +261,12 @@ module sdram_controller (
                     cmd_out <= CMD_NOP;
                     bank_out <= 2'b11;
                     addr_out <= 12'hfff;
+                    cke <= 1'b1;
                 end
 
                 ACCEPT_RD: begin
                     aref_en <= 1'b0;
+                    sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
                     rd_en <= ~rd_end;
@@ -227,10 +274,12 @@ module sdram_controller (
                     cmd_out <= rd_cmd_out;
                     bank_out <= rd_bank_out;
                     addr_out <= rd_addr_out;
+                    cke <= 1'b1;
                 end
 
                 RD_ABRUPT_END: begin
                     aref_en <= 1'b0;
+                    sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
                     rd_en <= 1'b0;
@@ -238,10 +287,12 @@ module sdram_controller (
                     cmd_out <= rd_cmd_out;
                     bank_out <= rd_bank_out;
                     addr_out <= rd_addr_out;
+                    cke <= 1'b1;
                 end
 
                 RD_DONE: begin
                     aref_en <= 1'b0;
+                    sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
                     rd_en <= 1'b0;
@@ -249,10 +300,12 @@ module sdram_controller (
                     cmd_out <= CMD_NOP;
                     bank_out <= 2'b11;
                     addr_out <= 12'hfff;
+                    cke <= 1'b1;
                 end
 
                 default: begin
                     aref_en <= 1'b0;
+                    sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
                     rd_en <= 1'b0;
@@ -260,6 +313,7 @@ module sdram_controller (
                     cmd_out <= CMD_NOP;
                     bank_out <= 2'b11;
                     addr_out <= 12'hfff;
+                    cke <= 1'b1;
                 end
             endcase
         end

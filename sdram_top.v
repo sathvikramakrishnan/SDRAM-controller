@@ -7,6 +7,8 @@ module sdram_top (
     // Bi-directional bus
     inout [15:0] dq,
 
+    input sref_req,
+
     input wr_req,
     input [24:0] wr_addr_in,
     input [15:0] wr_data_in,
@@ -32,6 +34,7 @@ module sdram_top (
     output [1:0] bank_out,
     output [11:0] addr_out,
     output dqm,
+    output cke,
     output busy
 );
 
@@ -46,6 +49,13 @@ module sdram_top (
     wire [3:0] aref_cmd_out;
     wire [1:0] aref_bank_out;
     wire [11:0] aref_addr_out;
+
+    wire sref_en;
+    wire sref_cke;
+    wire [3:0] sref_cmd_out;
+    wire [1:0] sref_bank_out;
+    wire [11:0] sref_addr_out;
+    wire sref_end;
 
     wire wr_en;
     wire wr_wait;
@@ -86,6 +96,13 @@ module sdram_top (
         .aref_addr_out (aref_addr_out),
         .aref_end (aref_end),
 
+        .sref_req (sref_req),
+        .sref_cke (sref_cke),
+        .sref_cmd_out (sref_cmd_out),
+        .sref_bank_out (sref_bank_out),
+        .sref_addr_out (sref_addr_out),
+        .sref_end (sref_end),
+
         .wr_req (wr_req),
         .wr_end (wr_end),
         .wr_err (wr_err),
@@ -101,6 +118,7 @@ module sdram_top (
         .rd_addr_out (rd_addr_out_int),
 
         .aref_en (aref_en),
+        .sref_en (sref_en),
         .wr_en (wr_en),
         .wr_wait (wr_wait),
         .rd_en (rd_en),
@@ -109,6 +127,7 @@ module sdram_top (
         .cmd_out (cmd_out),
         .bank_out (bank_out),
         .addr_out (addr_out),
+        .cke (cke),
         .busy (busy)
     );
 
@@ -122,6 +141,18 @@ module sdram_top (
         .aref_bank_out (aref_bank_out),
         .aref_addr_out (aref_addr_out),
         .aref_end (aref_end)
+    );
+
+    sdram_self_ref_gen sdram_self_ref_gen_inst (
+        .sys_clk (sys_clk),
+        .sys_reset_n (sys_reset_n),
+        .init_done (init_done),
+        .sref_en (sref_en),
+        .sref_cke (sref_cke),
+        .sref_cmd_out (sref_cmd_out),
+        .sref_bank_out (sref_bank_out),
+        .sref_addr_out (sref_addr_out),
+        .sref_end (sref_end)
     );
 
     sdram_write sdram_write_inst (
