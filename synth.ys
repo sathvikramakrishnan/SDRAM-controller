@@ -1,0 +1,14 @@
+read_verilog -I config \
+    sdram_top.v \
+    src/sdram_init.v \
+    src/sdram_read.v \
+    src/sdram_write.v \
+    src/sdram_auto_ref.v \
+    src/sdram_self_ref.v \
+    src/sdram_controller.v
+
+hierarchy -check -top sdram_top
+
+synth -top sdram_top
+
+write_verilog netlist.v

@@ -35,7 +35,7 @@ RTL -> Gate-level netlist
 Post-synthesis verification done
 
 ```bash
-yosys -s synth.ys > results/synth_top.txt
+yosys -s synth.ys
 iverilog -o gls_sim netlist.v tb_sdram_top.v src/sdram_model.v /usr/share/yosys/simlib.v
 vvp gls_sim
 gtkwave sdram_top.vcd

@@ -1,7 +1,6 @@
 out
 *.txt
 *.vcd
-*.ys
 results/
 waveforms/
 testbench/
