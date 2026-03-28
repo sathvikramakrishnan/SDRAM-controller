@@ -24,7 +24,7 @@ Includes `sdram_model.v` (Micron behavioral model) for:
 Tools: Icarus Verilog + GTKWave 
 
 ```bash
-iverilog -o out src/* tb_sdram_top.v sdram_top.v
+iverilog -I config/ -o out src/* tb_sdram_top.v sdram_top.v
 vvp out
 gtkwave sdram_top.vcd
 ```
@@ -33,3 +33,10 @@ gtkwave sdram_top.vcd
 Tool: Yosys
 RTL -> Gate-level netlist  
 Post-synthesis verification done
+
+```bash
+yosys -s synth.ys > results/synth_top.txt
+iverilog -o gls_sim netlist.v tb_sdram_top.v src/sdram_model.v /usr/share/yosys/simlib.v
+vvp gls_sim
+gtkwave sdram_top.vcd
+```
