@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-module sdram_top (
+module sdram_top #(
+        parameter MODE_REG = 12'b00_0_00_011_0_011 // CL3, Burst length 8
+    )(
     input sys_clk,
     input sys_reset_n,
 
@@ -38,6 +40,14 @@ module sdram_top (
     output busy
 );
 
+    localparam 
+        CL = MODE_REG[6:4],
+        WR_BURST = (MODE_REG[2:0] == 3'b111 && MODE_REG[3] == 1'b0) ? 256 : 
+                    (MODE_REG[2:0] == 3'b011) ? 8 : 
+                    (MODE_REG[2:0] == 3'b010) ? 4 : 1,
+        RD_BURST = (MODE_REG[2:0] == 3'b011) ? 8 : 
+                    (MODE_REG[2:0] == 3'b010) ? 4 : 1;
+
     wire init_done;
     wire [3:0] init_cmd_out;
     wire [1:0] init_bank_out;
@@ -72,7 +82,9 @@ module sdram_top (
     wire [15:0] rd_data_in;
     wire rd_dqm_out_int;
 
-    sdram_init sdram_init_inst (
+    sdram_init #(
+        .MODE_REG (MODE_REG)
+    ) sdram_init_inst (
         .sys_clk (sys_clk),
         .sys_reset_n (sys_reset_n),
         .init_cmd_out (init_cmd_out),

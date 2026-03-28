@@ -119,7 +119,7 @@ module sdram_controller (
                 end
 
                 WR_ABRUPT_END: begin
-                    if (wr_err)
+                    if (wr_err || wr_end)
                         contr_state <= SERVE_AR;
                     else
                         contr_state <= WR_ABRUPT_END;
@@ -139,7 +139,7 @@ module sdram_controller (
                 end
 
                 RD_ABRUPT_END: begin
-                    if (rd_err)
+                    if (rd_err || rd_end)
                         contr_state <= SERVE_AR;
                     else
                         contr_state <= RD_ABRUPT_END;

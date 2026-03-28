@@ -39,7 +39,18 @@ module tb_sdram_top;
     wire [15:0] dq_bus;
     wire dqm;
 
-    sdram_top dut (
+    localparam TB_MODE_REG = 12'b00_0_00_011_0_011; // CL3, Burst length 8
+
+    localparam 
+        WR_BURST = (TB_MODE_REG[2:0] == 3'b111 && TB_MODE_REG[3] == 1'b0) ? 256 : 
+                    (TB_MODE_REG[2:0] == 3'b011) ? 8 : 
+                    (TB_MODE_REG[2:0] == 3'b010) ? 4 : 1,
+        RD_BURST = (TB_MODE_REG[2:0] == 3'b011) ? 8 : 
+                    (TB_MODE_REG[2:0] == 3'b010) ? 4 : 1;
+
+    sdram_top #(
+        .MODE_REG     (TB_MODE_REG)
+    ) dut (
         .sys_clk      (sys_clk),
         .sys_reset_n  (sys_reset_n),
 
@@ -123,7 +134,7 @@ module tb_sdram_top;
         $display("Starting Write without wait...");
         wr_addr_in = 25'b11_000000000001_0_00_00000001;
         wr_data_in = 16'h00A1;
-        wr_blen_in = 9'd8;
+        wr_blen_in = WR_BURST;
         wr_dqm_in = 1'b0;
 
         wr_req <= 1;
@@ -135,7 +146,7 @@ module tb_sdram_top;
         $display("Starting Write with wait...");
         wr_addr_in = 25'b11_000000000010_0_00_00000001;
         wr_data_in = 16'h00B1;
-        wr_blen_in = 9'd8;
+        wr_blen_in = WR_BURST;
         wr_dqm_in = 1'b0;
 
         wr_req <= 1;
@@ -146,7 +157,7 @@ module tb_sdram_top;
         repeat(1539) @(posedge sys_clk);
         $display("Starting read operation with wait");
         rd_addr_in = 25'b11_000000000001_0_00_00000001;
-        rd_blen_in = 9'd8;
+        rd_blen_in = RD_BURST;
         rd_dqm_in = 1'b0;
 
         rd_req <= 1;
@@ -155,7 +166,7 @@ module tb_sdram_top;
         $display("Starting Write without wait again...");
         wr_addr_in = 25'b11_000000000001_0_00_00000001;
         wr_data_in = 16'h00C1;
-        wr_blen_in = 9'd8;
+        wr_blen_in = WR_BURST;
         wr_dqm_in = 1'b0;
 
         wr_req <= 1;
@@ -165,7 +176,7 @@ module tb_sdram_top;
 
         $display("Starting read operation without wait");
         rd_addr_in = 25'b11_000000000001_0_00_00000001;
-        rd_blen_in = 9'd8;
+        rd_blen_in = RD_BURST;
         rd_dqm_in = 1'b0;
 
         rd_req <= 1;
@@ -176,7 +187,7 @@ module tb_sdram_top;
         $display("Starting Write without wait again...");
         wr_addr_in = 25'b11_000000000011_0_00_00000001;
         wr_data_in = 16'h00D1;
-        wr_blen_in = 9'd8;
+        wr_blen_in = WR_BURST;
         wr_dqm_in = 1'b0;
 
         wr_req <= 1;
@@ -186,7 +197,7 @@ module tb_sdram_top;
 
         $display("Starting read operation without wait");
         rd_addr_in = 25'b11_000000000011_0_00_00000001;
-        rd_blen_in = 9'd8;
+        rd_blen_in = RD_BURST;
         rd_dqm_in = 1'b0;
 
         rd_req <= 1;
@@ -204,7 +215,7 @@ module tb_sdram_top;
 
         $display("Starting read operation after power down mode");
         rd_addr_in = 25'b11_000000000010_0_00_00000001;
-        rd_blen_in = 9'd8;
+        rd_blen_in = RD_BURST;
         rd_dqm_in = 1'b0;
 
         rd_req <= 1;

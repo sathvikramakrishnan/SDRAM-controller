@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-module sdram_init(
+module sdram_init#(
+        parameter MODE_REG = 12'b00_0_00_011_0_011 // CL3, Burst length 8
+    )(
     input sys_clk,
     input sys_reset_n,
     output reg [3:0] init_cmd_out,
@@ -158,7 +160,7 @@ module sdram_init(
                 INIT_MODE_REG: begin
                     init_cmd_out <= CMD_MODE_REG;
                     init_bank_out <= 2'b00; //  Bank address 00 for mode register
-                    init_addr_out <= 12'b00_0_00_011_0_111;
+                    init_addr_out <= MODE_REG;
                 end
 
                 default: begin
