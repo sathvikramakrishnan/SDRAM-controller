@@ -1,26 +1,28 @@
 `timescale 1ns / 1ps
 
+`include "sdram_config.vh"
+
 module sdram_top #(
-        parameter MODE_REG = 12'b00_0_00_011_0_011 // CL3, Burst length 8
-    )(
+    parameter MODE_REG = `MODE_REG // CL3, Burst length 8
+)(
     input sys_clk,
     input sys_reset_n,
 
-    // Bi-directional bus
-    inout [15:0] dq,
+    input [15:0] dq_in,
 
     input sref_req,
 
     input wr_req,
     input [24:0] wr_addr_in,
     input [15:0] wr_data_in,
-    input [8:0] wr_blen_in,
     input wr_dqm_in,
 
     input rd_req,
     input [24:0] rd_addr_in,
-    input [8:0] rd_blen_in,
     input rd_dqm_in,
+
+    output [15:0] dq_out,
+    output dq_en,
 
     output wr_end,
     output wr_err,
@@ -40,12 +42,12 @@ module sdram_top #(
     output busy
 );
 
-    localparam 
-        CL = MODE_REG[6:4],
-        WR_BURST = (MODE_REG[2:0] == 3'b111 && MODE_REG[3] == 1'b0) ? 256 : 
+    localparam CAS_LATENCY = MODE_REG[6:4];
+    localparam WR_BURST_LEN = (MODE_REG[2:0] == 3'b111 && MODE_REG[3] == 1'b0) ? 256 : 
                     (MODE_REG[2:0] == 3'b011) ? 8 : 
-                    (MODE_REG[2:0] == 3'b010) ? 4 : 1,
-        RD_BURST = (MODE_REG[2:0] == 3'b011) ? 8 : 
+                    (MODE_REG[2:0] == 3'b010) ? 4 : 1;
+    localparam RD_BURST_LEN = (MODE_REG[2:0] == 3'b111) ? 256 :
+                    (MODE_REG[2:0] == 3'b011) ? 8 : 
                     (MODE_REG[2:0] == 3'b010) ? 4 : 1;
 
     wire init_done;
@@ -167,14 +169,15 @@ module sdram_top #(
         .sref_end (sref_end)
     );
 
-    sdram_write sdram_write_inst (
+    sdram_write #(
+        .WR_BURST_LEN (WR_BURST_LEN)
+    ) sdram_write_inst (
         .sys_clk (sys_clk),
         .sys_reset_n (sys_reset_n),
         .init_done (init_done),
         .wr_en (wr_en),
         .wr_addr_in (wr_addr_in),
         .wr_data_in (wr_data_in),
-        .wr_blen_in (wr_blen_in),
         .wr_dqm_in (wr_dqm_in),
         .wr_wait (wr_wait),
         .apply_data (apply_data),
@@ -187,14 +190,16 @@ module sdram_top #(
         .wr_err (wr_err)
     );
 
-    sdram_read sdram_read_inst (
+    sdram_read #(
+        .CAS_LATENCY (CAS_LATENCY),
+        .RD_BURST_LEN (RD_BURST_LEN)
+    ) sdram_read_inst (
         .sys_clk (sys_clk),
         .sys_reset_n (sys_reset_n),
         .init_done (init_done),
         .rd_en (rd_en),
         .rd_addr_in (rd_addr_in),
         .rd_data_in (rd_data_in),
-        .rd_blen_in (rd_blen_in),
         .rd_dqm_in (rd_dqm_in),
         .rd_wait (rd_wait),
         .valid_read (valid_read),
@@ -207,9 +212,11 @@ module sdram_top #(
         .rd_err (rd_err)
     );
 
-    assign dq = (wr_req) ? wr_data_out : 16'hz;
-    assign dqm = (rd_req) ? rd_dqm_in : wr_dqm_in;
-
-    assign rd_data_in = dq;
+    // To handle bi-directional nature of DQ bus
+    assign dq_out = wr_data_out;
+    assign dq_en = (wr_en);
+    assign rd_data_in = dq_in;
+    
+    assign dqm = (rd_en) ? rd_dqm_in : wr_dqm_in;
 
 endmodule

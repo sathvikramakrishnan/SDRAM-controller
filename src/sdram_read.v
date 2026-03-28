@@ -1,13 +1,15 @@
 `timescale 1ns / 1ps
 
-module sdram_read(
+module sdram_read #(
+    parameter CAS_LATENCY = 3,
+    parameter RD_BURST_LEN = 8
+)(
     input sys_clk,
     input sys_reset_n,
     input init_done,
     input rd_en,
     input [24:0] rd_addr_in, // 24:23 - bank, 22:11 - row, 10 - auto precharge, 9:8 - unused, 7:0 - column
     input [15:0] rd_data_in,
-    input [8:0] rd_blen_in,
     input rd_dqm_in,
     input rd_wait,
 
@@ -30,8 +32,7 @@ module sdram_read(
 
     parameter 
         TRCD_COUNT = 2'd2,
-        TRP_COUNT = 2'd2,
-        TCAS_COUNT = 2'd3; // Depends on the CL loaded into the mode register
+        TRP_COUNT = 2'd2;
 
     // FSM states
     parameter
@@ -62,10 +63,10 @@ module sdram_read(
 
     // Driven high when the last read cycle is encountered
     wire last_cycle;
-    assign last_cycle = (rd_cycle_count == rd_blen_in - 1'b1);
+    assign last_cycle = (rd_cycle_count == RD_BURST_LEN - 1'b1);
 
     // Number of cycles for RD_READ_DATA state
-    assign rd_data_cycles = (rd_blen_in > TCAS_COUNT) ? (rd_blen_in - TCAS_COUNT) : 1'b1;
+    assign rd_data_cycles = (RD_BURST_LEN > CAS_LATENCY) ? (RD_BURST_LEN - CAS_LATENCY) : 1'b1;
     
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n)
@@ -82,7 +83,7 @@ module sdram_read(
 
     assign trcd_end = ((rd_state == RD_WAIT_TRCD) & (count_clk == TRCD_COUNT - 1'b1));
     assign trp_end = ((rd_state == RD_WAIT_TRP) & (count_clk == TRP_COUNT - 1'b1));
-    assign tcas_end = ((rd_state == RD_WAIT_CAS) & (count_clk == TCAS_COUNT - 1'b1));
+    assign tcas_end = ((rd_state == RD_WAIT_CAS) & (count_clk == CAS_LATENCY - 1'b1));
     assign tread_end = ((rd_state == RD_READ_DATA) & (rd_cycle_count == rd_data_cycles - 1'b1));
     
     always @(posedge sys_clk or negedge sys_reset_n) begin
@@ -237,16 +238,16 @@ module sdram_read(
                     end
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
-                    valid_read <= (last_cycle | rd_wait) ? 1'b0 : ~read_done;
-                    read_done <= (read_done | last_cycle | rd_wait);
+                    valid_read <= (last_cycle | rd_wait_reg[CAS_LATENCY-1]) ? 1'b0 : ~read_done;
+                    read_done <= (read_done | last_cycle | rd_wait_reg[CAS_LATENCY-1]);
                 end
 
                 RD_PRECHARGE: begin
                     rd_cmd_out <= CMD_PRECHARGE;
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
-                    valid_read <= (last_cycle | rd_wait) ? 1'b0 : ~read_done;
-                    read_done <= (read_done | last_cycle | rd_wait);
+                    valid_read <= (last_cycle | rd_wait_reg[CAS_LATENCY-1]) ? 1'b0 : ~read_done;
+                    read_done <= (read_done | last_cycle | rd_wait_reg[CAS_LATENCY-1]);
                     rd_err <= rd_err;
                 end
 
@@ -254,8 +255,8 @@ module sdram_read(
                     rd_cmd_out <= CMD_NOP;
                     rd_bank_out <= 2'b11;
                     rd_addr_out <= 12'hfff;
-                    valid_read <= (last_cycle | rd_wait) ? 1'b0 : ~read_done;
-                    read_done <= (read_done | last_cycle | rd_wait);
+                    valid_read <= (last_cycle | rd_wait_reg[CAS_LATENCY-1]) ? 1'b0 : ~read_done;
+                    read_done <= (read_done | last_cycle | rd_wait_reg[CAS_LATENCY-1]);
                     rd_err <= rd_err;
                 end
 
@@ -280,16 +281,21 @@ module sdram_read(
         end
     end
 
-    // DQM latency handling using a shift register
-    reg [TCAS_COUNT-1:0] dqm_reg;
+    // Latency handling for waveform analysis
+    reg [CAS_LATENCY-1:0] dqm_reg;
+    reg [CAS_LATENCY-1:0] rd_wait_reg;
     always @(posedge sys_clk or negedge sys_reset_n) begin
         if (~sys_reset_n) begin
             rd_dqm_out <= 1'b0;
-            dqm_reg <= {TCAS_COUNT{1'b0}};
+            dqm_reg <= {CAS_LATENCY{1'b0}};
+
+            rd_wait_reg <= {CAS_LATENCY{1'b0}};
         end
         else begin
-            rd_dqm_out <= dqm_reg[TCAS_COUNT-1];
-            dqm_reg <= {dqm_reg[TCAS_COUNT-2:0], rd_dqm_in};
+            rd_dqm_out <= dqm_reg[CAS_LATENCY-1];
+            dqm_reg <= {dqm_reg[CAS_LATENCY-2:0], rd_dqm_in};
+
+            rd_wait_reg <= {rd_wait_reg[CAS_LATENCY-2:0], rd_wait};
         end
     end
 
@@ -309,7 +315,7 @@ module sdram_read(
         else  if (valid_read_aligned)
             rd_data_out <= rd_data_in;
         else
-            rd_data_out <= 16'd1;
+            rd_data_out <= 16'hz;
     end
 
 endmodule

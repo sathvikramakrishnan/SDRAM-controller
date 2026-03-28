@@ -4,3 +4,4 @@ out
 *.ys
 results/
 waveforms/
+testbench/

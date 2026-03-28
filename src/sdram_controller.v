@@ -228,7 +228,7 @@ module sdram_controller (
                 ACCEPT_WR: begin
                     aref_en <= 1'b0;
                     sref_en <= 1'b0;
-                    wr_en <= ~wr_end;
+                    wr_en <= (~wr_end);
                     wr_wait <= 1'b0;
                     rd_en <= 1'b0;
                     rd_wait <= 1'b0;
@@ -241,7 +241,7 @@ module sdram_controller (
                 WR_ABRUPT_END: begin
                     aref_en <= 1'b0;
                     sref_en <= 1'b0;
-                    wr_en <= 1'b0;
+                    wr_en <= wr_en;
                     wr_wait <= 1'b1;
                     rd_en <= 1'b0;
                     rd_wait <= 1'b0;
@@ -269,7 +269,7 @@ module sdram_controller (
                     sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
-                    rd_en <= ~rd_end;
+                    rd_en <= (~rd_end);
                     rd_wait <= 1'b0;
                     cmd_out <= rd_cmd_out;
                     bank_out <= rd_bank_out;
@@ -282,7 +282,7 @@ module sdram_controller (
                     sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
-                    rd_en <= 1'b0;
+                    rd_en <= rd_en;
                     rd_wait <= 1'b1;
                     cmd_out <= rd_cmd_out;
                     bank_out <= rd_bank_out;
