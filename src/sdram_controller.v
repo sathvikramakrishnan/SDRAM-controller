@@ -50,7 +50,7 @@ module sdram_controller (
     output busy
 );
 
-    assign busy = (~init_done) || (aref_en) || (wr_en) || (rd_en);
+    assign busy = (~init_done) || (aref_en) || (sref_en) || (wr_en) || (rd_en) ;
 
     parameter CMD_NOP = 4'b0111;
 
@@ -241,7 +241,7 @@ module sdram_controller (
                 WR_ABRUPT_END: begin
                     aref_en <= 1'b0;
                     sref_en <= 1'b0;
-                    wr_en <= wr_en;
+                    wr_en <= ~(wr_err || wr_end);
                     wr_wait <= 1'b1;
                     rd_en <= 1'b0;
                     rd_wait <= 1'b0;
@@ -282,7 +282,7 @@ module sdram_controller (
                     sref_en <= 1'b0;
                     wr_en <= 1'b0;
                     wr_wait <= 1'b0;
-                    rd_en <= rd_en;
+                    rd_en <= ~(rd_err || rd_end);
                     rd_wait <= 1'b1;
                     cmd_out <= rd_cmd_out;
                     bank_out <= rd_bank_out;
