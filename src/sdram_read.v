@@ -315,7 +315,7 @@ module sdram_read #(
         else  if (valid_read_aligned)
             rd_data_out <= rd_data_in;
         else
-            rd_data_out <= 16'hz;
+            rd_data_out <= 16'd0;
     end
 
 endmodule
