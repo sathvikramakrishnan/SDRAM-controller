@@ -3,7 +3,7 @@
 `include "sdram_config.vh"
 
 module sdram_top #(
-    parameter MODE_REG = `MODE_REG // CL3, Burst length 8
+    parameter MODE_REG = `MODE_REG
 )(
     input sys_clk,
     input sys_reset_n,
