@@ -48,6 +48,8 @@ module tb_sdram_top;
 
     localparam TB_MODE_REG = `MODE_REG;
 
+    localparam TB_CAS_LATENCY = TB_MODE_REG[6:4];
+
     localparam TB_WR_BURST_LEN = (TB_MODE_REG[2:0] == 3'b111 && TB_MODE_REG[3] == 1'b0) ? 256 : 
                     (TB_MODE_REG[2:0] == 3'b011) ? 8 : 
                     (TB_MODE_REG[2:0] == 3'b010) ? 4 : 1;
@@ -145,7 +147,7 @@ module tb_sdram_top;
 
         // delay WR operation so that it is interrupted by a refresh request
         repeat(1540) @(posedge sys_clk);
-        $display("Starting Write with wait...");
+        $display("Starting Write with wait");
         wr_addr_in = 25'b11_000000000010_0_00_00000000;
         wr_data_in = 16'h00B1;
         wr_dqm_in = 1'b0;
@@ -163,7 +165,7 @@ module tb_sdram_top;
         rd_req <= 1;
 
         repeat (200) @(posedge sys_clk);
-        $display("Starting Write without wait again...");
+        $display("Starting Write without wait but with masking");
         wr_addr_in = 25'b11_000000000001_0_00_00000000;
         wr_data_in = 16'h00C1;
         wr_dqm_in = 1'b0;
@@ -173,7 +175,7 @@ module tb_sdram_top;
         @(posedge wr_end);
         repeat (10) @(posedge sys_clk);
 
-        $display("Starting read operation without wait");
+        $display("Starting read operation to check previous write operation's output");
         rd_addr_in = 25'b11_000000000001_0_00_00000000;
         rd_dqm_in = 1'b0;
 
@@ -182,7 +184,7 @@ module tb_sdram_top;
         @(posedge rd_end);
         repeat (10) @(posedge sys_clk);
 
-        $display("Starting Write without wait again...");
+        $display("Starting Write without wait again");
         wr_addr_in = 25'b11_000000000011_0_00_00000000;
         wr_data_in = 16'h00D1;
         wr_dqm_in = 1'b0;
@@ -246,11 +248,20 @@ module tb_sdram_top;
     // to not mask write operation the first time
     reg first = 0;
 
+    // SDRAM dqm always offers 2 cycle delay irrespective of CAS latency
+    // External device has to drive the dqm input accordingly
     always @(cmd_out) begin
         // Mask second last value read during read operation
         if (cmd_out == 4'd5) begin
-            repeat (TB_RD_BURST_LEN - 1) @(posedge sys_clk);
+            if (TB_CAS_LATENCY == 3) begin
+                repeat (TB_RD_BURST_LEN - 1) @(posedge sys_clk);
+                rd_dqm_in = 1'b1;
+            end
+        else if (TB_CAS_LATENCY == 2) begin
+            repeat (TB_RD_BURST_LEN - 2) @(posedge sys_clk);
             rd_dqm_in = 1'b1;
+        end
+
             @(posedge sys_clk);
             rd_dqm_in = 1'b0;
         end
