@@ -116,7 +116,7 @@ module sdram_auto_ref_gen(
     assign aref_end = (aref_state == AREF_END);
 
     // command values
-    localparam  CMD_PRECHARGE = 4'b0010;
+    localparam CMD_PRECHARGE = 4'b0010;
     localparam CMD_AUTO_REF = 4'b0001;
     localparam CMD_NOP = 4'b0111;
 

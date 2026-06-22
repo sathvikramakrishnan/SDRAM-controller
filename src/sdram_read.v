@@ -281,7 +281,8 @@ module sdram_read #(
         end
     end
 
-    // Latency handling for waveform analysis
+    // SDRAM handles dqm latency internally
+    // Latency handling for waveform analysis only
     reg [CAS_LATENCY-1:0] dqm_reg;
     reg [CAS_LATENCY-1:0] rd_wait_reg;
     always @(posedge sys_clk or negedge sys_reset_n) begin
